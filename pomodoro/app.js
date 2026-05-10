@@ -1,32 +1,32 @@
-// SVG 圆环: 2πr = 2 × π × 115 ≈ 722.6
-const R = 115;
+// SVG 圆环: 2πr = 2 × π × 105
+const R = 105;
 const CIRCUMFERENCE = 2 * Math.PI * R;
 
 const CONFIG = {
   focus: {
     duration: 25 * 60,
     label: '专注时间',
+    desc: '集中精力处理重要任务',
     vars: {
       '--accent': '#e8614a',
-      '--accent-soft': 'rgba(232, 97, 74, 0.15)',
       '--bg': '#121214',
     },
   },
   shortBreak: {
     duration: 5 * 60,
     label: '短休息',
+    desc: '短暂放松，恢复精力',
     vars: {
       '--accent': '#4caf7d',
-      '--accent-soft': 'rgba(76, 175, 125, 0.15)',
       '--bg': '#121414',
     },
   },
   longBreak: {
     duration: 15 * 60,
     label: '长休息',
+    desc: '充分休息，为下一轮充电',
     vars: {
       '--accent': '#5b7fff',
-      '--accent-soft': 'rgba(91, 127, 255, 0.15)',
       '--bg': '#12121c',
     },
   },
@@ -48,12 +48,11 @@ const duration = () => CONFIG[state.mode].duration;
 const $ = (id) => document.getElementById(id);
 const timerDisplay = $('timerDisplay');
 const timerLabel = $('timerLabel');
+const timerDesc = $('timerDesc');
 const progressRing = $('progressRing');
 const mainBtn = $('mainBtn');
 const resetBtn = $('resetBtn');
-const completedCount = $('completedCount');
-const cycleDots = $('cycleDots');
-const modeTabs = document.querySelectorAll('.mode-tab');
+const modeTabs = document.querySelectorAll('.tab');
 
 progressRing.style.strokeDasharray = CIRCUMFERENCE;
 
@@ -95,6 +94,22 @@ function beep() {
   } catch (_) {}
 }
 
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = 'zh-CN';
+  msg.rate = 0.9;
+  speechSynthesis.speak(msg);
+}
+
+// 第一次用户交互时初始化语音，绕过浏览器自动播放限制
+let _speechReady = false;
+function ensureSpeech() {
+  if (_speechReady) return;
+  speechSynthesis.cancel();
+  _speechReady = true;
+}
+
 function resetTimer() {
   state.timeLeft = duration();
 }
@@ -107,19 +122,6 @@ function applyTheme() {
   }
 }
 
-// --- 圆点 ---
-function renderCycleDots() {
-  let html = '';
-  for (let i = 0; i < 4; i++) {
-    const p = i + 1;
-    let cls = 'cycle-dot';
-    if (p < state.cyclePos) cls += ' done';
-    else if (p === state.cyclePos) cls += ' current';
-    html += `<span class="${cls}"></span>`;
-  }
-  cycleDots.innerHTML = html;
-}
-
 // --- 完整渲染 ---
 function updateUI() {
   const cfg = CONFIG[state.mode];
@@ -128,11 +130,9 @@ function updateUI() {
 
   timerDisplay.textContent = fmt(state.timeLeft);
   timerLabel.textContent = cfg.label;
+  timerDesc.textContent = cfg.desc;
 
   setProgress(state.timeLeft / duration());
-
-  completedCount.textContent = state.completed;
-  renderCycleDots();
 
   if (state.status === 'running') {
     mainBtn.textContent = '暂停';
@@ -194,6 +194,7 @@ function startTick() {
 function onComplete() {
   clearTick();
   beep();
+  speak(CONFIG[state.mode].label + '结束');
   state.status = 'idle';
 
   if (state.mode === 'focus') {
@@ -237,6 +238,7 @@ function reset() {
 }
 
 function toggleMain() {
+  ensureSpeech();
   if (state.status === 'running') pause();
   else start();
 }
